@@ -14,6 +14,7 @@ class RideRequest:
         return f"{self.name} | Year {self.year} | {self.destination.title()} ({self.slot.title()})"
 
 
+
 class Cab:
     def __init__(self, driver_name, destination, slot, seats):
         self.name = driver_name.strip()
@@ -27,6 +28,7 @@ class Cab:
         status = "Left" if self.is_dispatched else "Open"
         seats_taken = len(self.students_list)
         return f"Driver {self.name} | {self.destination} ({self.slot}) | Seats: {seats_taken}/{self.seats} | Status: {status}"
+
 
 # Defining functions used
 def get_valid_input(prompt, valid_options):
@@ -57,6 +59,17 @@ def match_cabs(cabs: list, waiting_requests: dict) -> dict:
             match_preview[cab] = waiting[:cab.seats]
             waiting_requests2[key] = waiting[cab.seats:]
     return match_preview
+
+def dispatch_cab(cab, cabs: list, waiting_requests: dict):
+    key = (cab.destination, cab.slot)
+    if not waiting_requests.get(key,[]):
+        return cab.is_dispatched
+    cab.students_list = waiting_requests.get(key,[])[:cab.seats]
+    waiting_requests[key] = waiting_requests[key][cab.seats:]
+    if not waiting_requests[key]:                                           # If after dispatching cab no req are left in this key the key is deleted
+      del waiting_requests[key]                                             # so it wont print empty slot names in option 2 in menu
+    cab.is_dispatched = True
+    return cab.is_dispatched
 
 
 
@@ -138,8 +151,26 @@ while True:
                     for index, student in enumerate(students, 1):
                         print(f"  {index}. {student}")
 
-    
-    elif choice=="4": print("coming soon")
+    elif choice=="4": 
+        print("\n--- DISPATCH A CAB ---")
+        open_cabs = [c for c in cabs if not c.is_dispatched]
+        if not open_cabs:
+            print("No open cabs to dipatch")
+        else:
+            cab_not_avialable = True
+            dispatch_destination = get_valid_input("Enter destination (Delhi/Jaipur): ",valid_destinations )
+            dispatch_slot = get_valid_input("Enter slot (Morning/Afternoon/Evening/Night): ", valid_slots)
+            for selected_cab in open_cabs:
+                if selected_cab.destination == dispatch_destination and selected_cab.slot == dispatch_slot:
+                    cab_not_avialable = False
+                    if dispatch_cab(selected_cab, cabs, waiting_requests):
+                        names = ", ".join(s.name for s in selected_cab.students_list)
+                        print(f"{selected_cab.name}'s cab left with ({len(selected_cab.students_list)}/{selected_cab.seats}): {names}")
+                    else:
+                        print("Nobody is waiting for this trip. Cab not dispatched.")
+                    break
+            if cab_not_avialable:
+                print("No open cab is avialable for selected destination and slot")
 
     elif choice=="5":
         break #handeling quit
