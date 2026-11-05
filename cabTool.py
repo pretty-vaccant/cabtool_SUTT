@@ -21,7 +21,12 @@ class Cab:
         self.slot = slot.strip().title()  
         self.seats = int(seats)
         self.students_list = []
-        self.is_dispatched = False           #Cab avialability status
+        self.is_dispatched = False           #Cab avialability 
+
+    def __str__(self):
+        status = "Left" if self.is_dispatched else "Open"
+        seats_taken = len(self.students_list)
+        return f"Driver {self.name} | {self.destination} ({self.slot}) | Seats: {seats_taken}/{self.seats} | Status: {status}"
 
 # Defining functions used
 def get_valid_input(prompt, valid_options):
@@ -43,13 +48,13 @@ def get_valid_year():
 # Needed variables
 valid_destinations = ["delhi","jaipur"]                              # Avialable destinaions
 valid_slots = ["morning","afternoon","evening","night"]              # Valid Slots
-waiting_requests = []
+waiting_requests = {}
 cabs = []
 
 # Reading Cabs data and storing in all_cabs list
 try:
-    with open("cabs.json","r") as cabs_variable:
-        cabs_data = json.load(cabs_variable)
+    with open("cabs.json","r") as f:
+        cabs_data = json.load(f)
     for c in cabs_data:
         new_cab = Cab(c["driver_name"], c["destination"], c["slot"], c["seats"])
         cabs.append(new_cab)
@@ -78,7 +83,8 @@ while True:
         year = get_valid_year()
 
         req = RideRequest(name, destination, slot, year)
-        waiting_requests.append(req)
+        key=(req.destination,req.slot)
+        waiting_requests.setdefault(key,[]).append(req)
         print(f"Successfully added ride request for {name}!")
 
 
@@ -88,17 +94,18 @@ while True:
         if not waiting_requests:
             print("No students waiting.")
         else:
-            for i in waiting_requests:
-                print(i)
+            for (dest, slot), req_list  in waiting_requests.items():
+                print(f"requests for ({dest},{slot}) are-")
+                for Index,req in enumerate(req_list):
+                    print(f"{Index}-{req}")
+
 
         print("\n--- CABS ---")
         if not cabs: 
             print("No Cabs loaded")
         else:
-            for cab in cabs:
-                status = "Left" if cab.is_dispatched else "Open"
-                seats_taken = len(cab.students_list)
-                print(f"Driver {cab.name} | {cab.destination} ({cab.slot}) | Seats: {seats_taken}/{cab.seats} | Status: {status}")
+            for Index,cab in enumerate(cabs):
+                print(f"{Index}-{cab}")
     elif choice=="3":break #handeling quit
 
     else: print("invalid input, valid inputs are(1-3)")
