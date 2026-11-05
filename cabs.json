@@ -1,0 +1,20 @@
+[
+    {
+        "driver_name": "Ramesh Kumar",
+        "destination": "Delhi",
+        "slot": "Morning",
+        "seats": 4
+    },
+    {
+        "driver_name": "Suresh Singh",
+        "destination": "Jaipur",
+        "slot": "Night",
+        "seats": 3
+    },
+    {
+        "driver_name": "Vikram Rathore",
+        "destination": "Delhi",
+        "slot": "Evening",
+        "seats": 4
+    }
+]
