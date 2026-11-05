@@ -45,6 +45,21 @@ def get_valid_year():
             return int(year_str)
         print("Invalid year! Must be a number between 1 and 5.")
 
+def match_cabs(cabs: list, waiting_requests: dict) -> dict:
+    match_preview = {}
+    waiting_requests2=waiting_requests.copy()
+    for cab in cabs:
+        if cab.is_dispatched:
+            continue
+        else:
+            key = (cab.destination, cab.slot)
+            waiting = waiting_requests2.get(key, [])
+            match_preview[cab] = waiting[:cab.seats]
+            waiting_requests2[key] = waiting[cab.seats:]
+    return match_preview
+
+
+
 # Needed variables
 valid_destinations = ["delhi","jaipur"]                              # Avialable destinaions
 valid_slots = ["morning","afternoon","evening","night"]              # Valid Slots
@@ -66,16 +81,18 @@ except FileNotFoundError:
 title_text = """========================================
     CAB POOL MATCHER - MAIN MENU"""
 menu_text = """========================================
-1. Add a new ride request
-2. View all waiting requests and cabs
-3. Quit
+1. Add a New Ride Request
+2. View All Cabs & Waiting Requests
+3. Find Matches (Preview Seat Allocation)
+4. Dispatch a Cab
+5. Quit
 ========================================"""
 
 # Infinite Loop for menu
 print(title_text)
 while True:
     print(menu_text)
-    choice = input("Enter your choice (1-3):")
+    choice = input("Enter your choice (1-5):")
     if choice == "1":
         name = input("Enter student name: ").strip().title()
         destination = get_valid_input("Enter destination (Delhi/Jaipur): ",valid_destinations )
@@ -95,17 +112,36 @@ while True:
             print("No students waiting.")
         else:
             for (dest, slot), req_list  in waiting_requests.items():
-                print(f"requests for ({dest},{slot}) are-")
+                print(f"\nrequests for ({dest},{slot}) are-")
                 for Index,req in enumerate(req_list):
-                    print(f"{Index}-{req}")
+                    print(f"{Index+1}-{req}")
 
 
         print("\n--- CABS ---")
         if not cabs: 
             print("No Cabs loaded")
         else:
-            for Index,cab in enumerate(cabs):
-                print(f"{Index}-{cab}")
-    elif choice=="3":break #handeling quit
+            for index,cab in enumerate(cabs,1):
+                print(f"{index}-{cab}")
+    
+    elif choice == "3": 
+        match_preview = match_cabs(cabs, waiting_requests)
+        print("\n--- MATCH PREVIEW ---")
+        if not match_preview:
+            print(" ↳ No open cabs available.")
+        else:
+            for cab, students in match_preview.items():
+                print(f"\nCab ({cab}):")
+                if not students:
+                    print(" No waiting students for this trip.")
+                else:
+                    for index, student in enumerate(students, 1):
+                        print(f"  {index}. {student}")
 
-    else: print("invalid input, valid inputs are(1-3)")
+    
+    elif choice=="4": print("coming soon")
+
+    elif choice=="5":
+        break #handeling quit
+
+    else: print("invalid input, valid inputs are(1-5)")
