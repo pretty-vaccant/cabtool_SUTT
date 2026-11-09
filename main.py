@@ -18,6 +18,23 @@ class RideRequest:
     def __str__(self):
         return f"{self.name} | Year {self.year} | {self.destination.title()} ({self.slot.title()})"
 
+    def to_dict(self):
+        """Turns this request into a plain dict that json can save."""
+        return {
+            "name": self.name,
+            "destination": self.destination,
+            "slot": self.slot,
+            "year": self.year,
+            "seq": self.seq,
+            "timestamp": self.timestamp,
+        }
+
+    @classmethod
+    def from_dict(cls, d):
+        """Builds a RideRequest from a dict (the reverse of to_dict)."""
+        return cls(d["name"], d["destination"], d["slot"], d["year"], d["seq"],
+                   timestamp=d["timestamp"])
+
 
 class Cab:
     def __init__(self, driver_name, destination, slot, seats=4, students_list=None, is_dispatched=False):
@@ -35,6 +52,25 @@ class Cab:
         status = "Left" if self.is_dispatched else "Open"
         seats_taken = len(self.students_list)
         return f"Driver {self.name} | {self.destination} ({self.slot}) | Seats: {seats_taken}/{self.seats} | Status: {status}"
+
+    def to_dict(self):
+        """Turns this cab (and the students inside it) into a plain dict."""
+        return {
+            "driver_name": self.name,
+            "destination": self.destination,
+            "slot": self.slot,
+            "seats": self.seats,
+            "students_list": [s.to_dict() for s in self.students_list],
+            "is_dispatched": self.is_dispatched,
+        }
+
+    @classmethod
+    def from_dict(cls, d):
+        """Builds a Cab from a dict. students_list and is_dispatched are optional,
+        so the same method works for cabs.json (bare cabs) and data.json (saved cabs)."""
+        students = [RideRequest.from_dict(s) for s in d.get("students_list", [])]
+        return cls(d["driver_name"], d["destination"], d["slot"], d["seats"],
+                   students, d.get("is_dispatched", False))
 
 
 # Defining functions used
@@ -94,39 +130,12 @@ def has_cab(key,cabs:list):
             return True
     return False
 
-def request_to_dict(req:RideRequest):
-    return {"name": req.name,
-            "destination": req.destination,
-            "slot": req.slot,
-            "year": req.year,
-            "seq": req.seq,
-            "timestamp": req.timestamp
-            }
-
-def dict_to_req(req:dict):
-    return RideRequest(req["name"],req["destination"],req["slot"],req["year"],req["seq"],timestamp=req["timestamp"])
-
-def dict_to_cab(cab:dict):
-    students = [dict_to_req(s) for s in cab["students_list"]]
-    return Cab(cab["driver_name"],cab["destination"],cab["slot"],cab["seats"],students,cab["is_dispatched"])
-
-def save_state(cabs:list[Cab],waiting_requests:dict[RideRequest],next_seq:int):
-    cab_data = []
-    for cab in cabs:
-        entry = {
-            "driver_name": cab.name,
-            "destination": cab.destination,
-            "slot": cab.slot,
-            "seats": cab.seats,
-            "students_list": [request_to_dict(s) for s in cab.students_list],
-            "is_dispatched": cab.is_dispatched,
-        }
-        cab_data.append(entry)
+def save_state(cabs:list[Cab],waiting_requests:dict,next_seq:int):
+    cab_data = [cab.to_dict() for cab in cabs]
     waiting_data = []                                              # Now remaiang is dict of {(destination,slot):[list of req sorted on basis of year,seq]}
     for heap in waiting_requests.values():
         for _,_,req in sorted(heap):
-            entry = request_to_dict(req)
-            waiting_data.append(entry)
+            waiting_data.append(req.to_dict())
     saving_data = {
         "next_seq":next_seq,
         "cab_data":cab_data,
@@ -135,8 +144,8 @@ def save_state(cabs:list[Cab],waiting_requests:dict[RideRequest],next_seq:int):
     try:
         tmp_file = SAVE_FILE + ".tmp"
         with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(saving_data, f, indent=4)                     # usinf Os.replace so that file data is swapped only once and to
-        os.replace(tmp_file, SAVE_FILE)                             # avoid any errors that may be brought up later due to incomplete files [file is either complete old or complete new version]
+            json.dump(saving_data, f, indent=4)                     # usinf Os.replace so that file data is swapped only once and to avoid any errors that may be
+        os.replace(tmp_file, SAVE_FILE)                             # brought up later due to incomplete files [file is either complete old or complete new version]
     except OSError as e:
         print(f"Warning: could not save data ({e}). Continuing without saving.")
 
@@ -152,19 +161,12 @@ def load_state():
         return None
     try:                                                            # Handeling errors while reading a file
         next_seq = int(data["next_seq"])
-        cabs = []
         waiting_requests = {}
-        loaded_cabs = data["cab_data"]
-        loaded_reqs = data["waiting_data"]
-        for cab in loaded_cabs:
-            entry = dict_to_cab(cab)
-            cabs.append(entry)
-        for d in loaded_reqs:
-            req = dict_to_req(d)
+        cabs = [Cab.from_dict(c) for c in data["cab_data"]]
+        for d in data["waiting_data"]:
+            req = RideRequest.from_dict(d)
             key=(req.destination,req.slot)
             heapq.heappush(waiting_requests.setdefault(key, []), (-req.year, req.seq, req))
-        print("cabs.json not read -data.json already exists")
-        print("(delete data.json to get a fresh start)")
     
     except (KeyError, TypeError, ValueError, AttributeError) as e:
         print(f"Warning: {SAVE_FILE} is damaged ({e}). Starting fresh.")
@@ -178,15 +180,13 @@ valid_slots = ["morning","afternoon","evening","night"]              # Valid Slo
 waiting_requests = {}
 next_seq = 0
 cabs = []
-loaded_cabs = False
 
 # Reading Cabs data and storing in all_cabs list
 try:
     with open("cabs.json","r") as f:
         cabs_data = json.load(f)
     for c in cabs_data:
-        new_cab = Cab(c["driver_name"], c["destination"], c["slot"], c["seats"])
-        cabs.append(new_cab)
+        cabs.append(Cab.from_dict(c))
 except FileNotFoundError:
     print("Warning: cabs.json not found. Starting with 0 cabs.")
 except Exception as e:
@@ -207,6 +207,8 @@ menu_text = """========================================
 state = load_state()
 if state is not None:
     cabs, waiting_requests, next_seq = state
+    print("Loaded previous session from data.json (cabs.json is ignored while a save exists).")
+    print("(delete data.json to get a fresh start)")
 
 
 # Infinite Loop for menu
@@ -259,14 +261,13 @@ while True:
             print(" ↳ No open cabs available.")
         else:
             for cab, students in match_preview.items():
-                print(f"\nCab ({cab}):")
+                print(f"\nCab (Driver {cab.name} | {cab.destination} ({cab.slot}) | Seats: {len(students)}/{cab.seats} | Status: Open):")
                 if not students:
                     print(" No waiting students for this trip.")
                 else:
                     for index, student in enumerate(students, 1):
                         print(f"  {index}. {student}")
 
-    
     
     elif choice=="4": 
         print("\n--- DISPATCH A CAB ---")
