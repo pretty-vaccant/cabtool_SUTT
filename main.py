@@ -173,29 +173,35 @@ def load_state():
         return None
     return cabs, waiting_requests, next_seq
 
+if  __name__ == "__main__":
     
-# Needed variables
-valid_destinations = ["delhi","jaipur"]                              # Available destinations
-valid_slots = ["morning","afternoon","evening","night"]              # Valid Slots
-waiting_requests = {}
-next_seq = 0
-cabs = []
+    # Needed variables
+    valid_destinations = ["delhi","jaipur"]                              # Available destinations
+    valid_slots = ["morning","afternoon","evening","night"]              # Valid Slots
+    waiting_requests = {}
+    next_seq = 0
+    cabs = []
+    cabs_error = False
 
-# Reading Cabs data and storing in all_cabs list
-try:
-    with open("cabs.json","r") as f:
-        cabs_data = json.load(f)
-    for c in cabs_data:
-        cabs.append(Cab.from_dict(c))
-except FileNotFoundError:
-    print("Warning: cabs.json not found. Starting with 0 cabs.")
-except Exception as e:
-    print(f"Cabs.json could not be read-{e} ")
+    # Reading Cabs data and storing in all_cabs list
+    try:
+        with open("cabs.json","r") as f:
+            cabs_data = json.load(f)
+        for c in cabs_data:
+            cabs.append(Cab.from_dict(c))                                  # in case of a bad entry those above it are stil entered to the list
+    except FileNotFoundError:
+        print("Warning: cabs.json not found. Starting with 0 cabs.")
+        cabs_error = True
+    except Exception as e:
+        print(f"Cabs.json could not be read-{e} ")
+        cabs_error = True
 
-#printables
-title_text = """========================================
-    CAB POOL (BITS-PILANI) - MAIN MENU"""
-menu_text = """========================================
+
+
+    #printables
+    title_text = """========================================
+CAB POOL (BITS-PILANI) - MAIN MENU"""
+    menu_text = """========================================
 1. Add a New Ride Request
 2. View All Cabs & Waiting Requests
 3. Find Matches (Preview Seat Allocation)
@@ -203,94 +209,98 @@ menu_text = """========================================
 5. Quit
 ========================================"""
 
-# Loading save state
-state = load_state()
-if state is not None:
-    cabs, waiting_requests, next_seq = state
-    print("Loaded previous session from data.json (cabs.json is ignored while a save exists).")
-    print("(delete data.json to get a fresh start)")
+    # Loading save state
+    state = load_state()
+    if state is not None:
+        cabs, waiting_requests, next_seq = state
+        if cabs_error:
+            print("Loaded cabs and requests from data.json (cabs.json couldn't be read.).")
+        else:
+            print("Loaded previous session from data.json (cabs.json is ignored while a save exists).")
+        print("(delete data.json to get a fresh start)")
 
 
-# Infinite Loop for menu
-print(title_text)
-while True:
-    save_state(cabs, waiting_requests, next_seq)
-    print(menu_text)
-    choice = input("Enter your choice (1-5):")
-    if choice == "1":
-        name = input("Enter student name: ").strip().title()
-        destination = get_valid_input("Enter destination (Delhi/Jaipur): ",valid_destinations )
-        slot = get_valid_input("Enter slot (Morning/Afternoon/Evening/Night): ", valid_slots)
-        year = get_valid_year()
+    # Infinite Loop for menu
+    print(title_text)
+    while True:
+        print(menu_text)
+        choice = input("Enter your choice (1-5):")
+        if choice == "1":
+            name = input("Enter student name: ").strip().title()
+            destination = get_valid_input("Enter destination (Delhi/Jaipur): ",valid_destinations )
+            slot = get_valid_input("Enter slot (Morning/Afternoon/Evening/Night): ", valid_slots)
+            year = get_valid_year()
 
-        req = RideRequest(name, destination, slot, year, next_seq)
-        next_seq += 1
-        key=(req.destination,req.slot)
-        heapq.heappush(waiting_requests.setdefault(key, []), (-req.year, req.seq, req))
-            # using - year because heap keeps smallest element first while here bigger year is prioritized
-            # so we can just use -ve of year to rev the priority as now bigger year means smaller (-year)
-        print(f"Successfully added ride request for {name}!")
-        if not has_cab(key, cabs):
-            print("No open cab for this trip right now. You're on the waiting list.")
+            req = RideRequest(name, destination, slot, year, next_seq)
+            next_seq += 1
+            key=(req.destination,req.slot)
+            heapq.heappush(waiting_requests.setdefault(key, []), (-req.year, req.seq, req))
+                # using - year because heap keeps smallest element first while here bigger year is prioritized
+                # so we can just use -ve of year to rev the priority as now bigger year means smaller (-year)
+            save_state(cabs, waiting_requests, next_seq)
+            print(f"Successfully added ride request for {name}!")
+            if not has_cab(key, cabs):
+                print("No open cab for this trip right now. You're on the waiting list.")
 
+
+            
+        elif choice == "2":
+            print("\n--- WAITING REQUESTS ---")
+            if not waiting_requests:
+                print("No students waiting.")
+            else:
+                for (dest, slot), req_list  in waiting_requests.items():
+                    print(f"\nrequests for ({dest},{slot}) are-")
+                    for Index, item in enumerate(sorted(req_list)):
+                        print(f"{Index+1}-{item[2]}")
+
+
+            print("\n--- CABS ---")
+            if not cabs: 
+                print("No Cabs loaded")
+            else:
+                for index,cab in enumerate(cabs,1):
+                    print(f"{index}-{cab}")
+        
+    
+        elif choice == "3": 
+            match_preview = match_cabs(cabs, waiting_requests)
+            print("\n--- MATCH PREVIEW ---")
+            if not match_preview:
+                print(" ↳ No open cabs available.")
+            else:
+                for cab, students in match_preview.items():
+                    print(f"\nCab (Driver {cab.name} | {cab.destination} ({cab.slot}) | Seats: {len(students)}/{cab.seats} | Status: Open):")
+                    if not students:
+                        print(" No waiting students for this trip.")
+                    else:
+                        for index, student in enumerate(students, 1):
+                            print(f"  {index}. {student}")
 
         
-    elif choice == "2":
-        print("\n--- WAITING REQUESTS ---")
-        if not waiting_requests:
-            print("No students waiting.")
-        else:
-            for (dest, slot), req_list  in waiting_requests.items():
-                print(f"\nrequests for ({dest},{slot}) are-")
-                for Index, item in enumerate(sorted(req_list)):
-                    print(f"{Index+1}-{item[2]}")
+        elif choice=="4": 
+            print("\n--- DISPATCH A CAB ---")
+            open_cabs = [c for c in cabs if not c.is_dispatched]
+            if not open_cabs:
+                print("No open cabs to dispatch")
+            else:
+                cab_not_available = True
+                dispatch_destination = get_valid_input("Enter destination (Delhi/Jaipur): ",valid_destinations )
+                dispatch_slot = get_valid_input("Enter slot (Morning/Afternoon/Evening/Night): ", valid_slots)
+                for selected_cab in open_cabs:
+                    if selected_cab.destination == dispatch_destination and selected_cab.slot == dispatch_slot:
+                        cab_not_available = False
+                        if dispatch_cab(selected_cab, waiting_requests):
+                            save_state(cabs, waiting_requests, next_seq)
+                            names = ", ".join(s.name for s in selected_cab.students_list)
+                            print(f"{selected_cab.name}'s cab left with ({len(selected_cab.students_list)}/{selected_cab.seats}): {names}")
+                        else:
+                            print("Nobody is waiting for this trip. Cab not dispatched.")
+                        break
+                if cab_not_available:
+                    print("No open cab is available for selected destination and slot")
 
+        elif choice=="5":
+            break #handling quit
 
-        print("\n--- CABS ---")
-        if not cabs: 
-            print("No Cabs loaded")
-        else:
-            for index,cab in enumerate(cabs,1):
-                print(f"{index}-{cab}")
-    
-   
-    elif choice == "3": 
-        match_preview = match_cabs(cabs, waiting_requests)
-        print("\n--- MATCH PREVIEW ---")
-        if not match_preview:
-            print(" ↳ No open cabs available.")
-        else:
-            for cab, students in match_preview.items():
-                print(f"\nCab (Driver {cab.name} | {cab.destination} ({cab.slot}) | Seats: {len(students)}/{cab.seats} | Status: Open):")
-                if not students:
-                    print(" No waiting students for this trip.")
-                else:
-                    for index, student in enumerate(students, 1):
-                        print(f"  {index}. {student}")
-
-    
-    elif choice=="4": 
-        print("\n--- DISPATCH A CAB ---")
-        open_cabs = [c for c in cabs if not c.is_dispatched]
-        if not open_cabs:
-            print("No open cabs to dispatch")
-        else:
-            cab_not_available = True
-            dispatch_destination = get_valid_input("Enter destination (Delhi/Jaipur): ",valid_destinations )
-            dispatch_slot = get_valid_input("Enter slot (Morning/Afternoon/Evening/Night): ", valid_slots)
-            for selected_cab in open_cabs:
-                if selected_cab.destination == dispatch_destination and selected_cab.slot == dispatch_slot:
-                    cab_not_available = False
-                    if dispatch_cab(selected_cab, waiting_requests):
-                        names = ", ".join(s.name for s in selected_cab.students_list)
-                        print(f"{selected_cab.name}'s cab left with ({len(selected_cab.students_list)}/{selected_cab.seats}): {names}")
-                    else:
-                        print("Nobody is waiting for this trip. Cab not dispatched.")
-                    break
-            if cab_not_available:
-                print("No open cab is available for selected destination and slot")
-
-    elif choice=="5":
-        break #handling quit
-
-    else: print("invalid input, valid inputs are(1-5)")
+        else: print("invalid input, valid inputs are(1-5)")
