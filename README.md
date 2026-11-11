@@ -10,9 +10,16 @@ Requirements: Python 3.9 or newer. Only the standard library is used, so there i
 python main.py
 ```
 
-(Use whatever your main file is called if it is not `main.py`.)
-
 Put a `cabs.json` file in the same folder before you start. A sample is included in this repo.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `main.py` | The whole app: classes, matching and dispatch logic, saving and loading, and the menu |
+| `cabs.json` | The list of cabs, edited by you (format below) |
+| `data.json` | The saved state, created and managed by the app. Not meant to be edited |
+| `README.md` | This file |
 
 ## Menu
 
@@ -24,7 +31,7 @@ Put a `cabs.json` file in the same folder before you start. A sample is included
 5. Quit
 ```
 
-1. **Add a request:** enter a name, destination (Delhi/Jaipur), slot (Morning/Afternoon/Evening/Night) and year (1-5). Invalid input shows an error and asks again. The name can be left blank, so anonymous requests are allowed. The request joins the waiting list for its trip; nobody gets a seat yet.
+1. **Add a request:** enter a name, destination, slot and year (1-5). The destinations are currently Delhi and Jaipur, and the slots are currently Morning, Afternoon, Evening and Night. Invalid input shows an error and asks again. The name can be left blank, so anonymous requests are allowed. The request joins the waiting list for its trip; nobody gets a seat yet.
 2. **View everything:** waiting students for every trip (in priority order) and all cabs, both open and already left, with seats taken (like `3/4`).
 3. **Find matches:** a preview of who would get a seat in each open cab right now. Nothing changes: no one is seated and the waiting list stays as it is.
 4. **Dispatch a cab:** pick a destination and slot. The first open cab for that trip is filled with the most senior waiting students (up to its seats) and marked as left.
@@ -70,11 +77,14 @@ If the file is missing or invalid, the app prints a clear message instead of cra
 
 State is saved to `data.json` **after every change** (a new request, or a cab leaving). It stores the waiting students, which students are in which cab, which cabs have left, and a request counter used for ordering (see below). On the next start the app loads it and continues exactly where it left off.
 
-- **Why JSON and not pickle:** JSON is human-readable and easy to inspect or fix by hand. Pickle is not readable, and loading a pickle file can run arbitrary code, so it is unsafe for a file people can edit.
+`data.json` is created automatically the first time you run the app and make a change (add a request or dispatch a cab), so you never need to create it yourself. **It is managed by the app and is not meant to be edited or touched by hand.** Editing it can corrupt the saved state (a damaged file is detected, but the saved data would be lost and the app would start fresh).
+
+- **Why JSON and not pickle:** JSON is human-readable, so the saved state can be inspected easily. Pickle is not readable, and loading a pickle file can run arbitrary code, so it is unsafe.
 - **Crash safety:** the app writes to `data.json.tmp` first and then swaps it in with `os.replace`, so the save file is always either the complete old version or the complete new version, never half-written.
 - **Ctrl+C:** because everything is saved right after each change, nothing is lost when the app is interrupted. Python may print a traceback on Ctrl+C, but no data is affected.
 - **Missing or broken save file:** the app does not crash. It tells the user and starts fresh.
-- **`cabs.json` vs `data.json`:** once a `data.json` exists, the cab list comes from it and `cabs.json` is ignored. To start over (or to pick up changes to `cabs.json`), delete `data.json`.
+- **`cabs.json` vs `data.json`:** once a `data.json` exists, the cab list comes from it and `cabs.json` is ignored. To update the cab data (for example, to add a cab or change seats in `cabs.json`), or to start over, delete `data.json` first. Note that this also clears the waiting list and the record of cabs that have left.
+- **If `cabs.json` breaks:** if `cabs.json` is missing or cannot be read but a `data.json` is available, the app does not lose the cabs. It loads them from `data.json` and tells the user.
 
 ## How it works
 
