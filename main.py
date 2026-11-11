@@ -227,8 +227,8 @@ CAB POOL (BITS-PILANI) - MAIN MENU"""
         choice = input("Enter your choice (1-5):")
         if choice == "1":
             name = input("Enter student name: ").strip().title()
-            destination = get_valid_input("Enter destination (Delhi/Jaipur): ",valid_destinations )
-            slot = get_valid_input("Enter slot (Morning/Afternoon/Evening/Night): ", valid_slots)
+            destination = get_valid_input(f"Enter destination ({'/'.join(d.title() for d in valid_destinations)}): ",valid_destinations )
+            slot = get_valid_input(f"Enter slot ({'/'.join(d.title() for d in valid_slots)}): ", valid_slots)
             year = get_valid_year()
 
             req = RideRequest(name, destination, slot, year, next_seq)
@@ -285,8 +285,8 @@ CAB POOL (BITS-PILANI) - MAIN MENU"""
                 print("No open cabs to dispatch")
             else:
                 cab_not_available = True
-                dispatch_destination = get_valid_input("Enter destination (Delhi/Jaipur): ",valid_destinations )
-                dispatch_slot = get_valid_input("Enter slot (Morning/Afternoon/Evening/Night): ", valid_slots)
+                dispatch_destination = get_valid_input(f"Enter destination ({'/'.join(d.title() for d in valid_destinations)}): ", valid_destinations)
+                dispatch_slot = get_valid_input(f"Enter slot ({'/'.join(s.title() for s in valid_slots)}): ", valid_slots)
                 for selected_cab in open_cabs:
                     if selected_cab.destination == dispatch_destination and selected_cab.slot == dispatch_slot:
                         cab_not_available = False
